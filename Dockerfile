@@ -3,11 +3,14 @@ FROM composer:2 as builder
 
 WORKDIR /app
 
+# Install required PHP extensions for Twig and its dependencies
+RUN docker-php-ext-install ctype mbstring iconv zip
+
 # Copy only composer files to leverage Docker cache
 COPY composer.json composer.lock ./
 
 # Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-reqs
 
 # Copy the rest of the application source code
 COPY . .
