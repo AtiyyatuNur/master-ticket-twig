@@ -3,6 +3,9 @@
   const TICKETS_KEY = 'TicketApp_tickets';
   let ticketChart = null; // To hold the chart instance
 
+  let currentPage = 1;
+  const ticketsPerPage = 6; // Show 6 tickets per page
+
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) =>
     Array.from(root.querySelectorAll(selector));
@@ -338,7 +341,7 @@
       card.className = 'card p-4 flex flex-col gap-3';
       card.innerHTML = `
         <div class="flex justify-between items-start">
-          <h4 class="font-bold text-sky-500 dark:text-sky-400">${escapeHTML(
+          <h4 class="font-bold text-indigo-600 dark:text-indigo-400">${escapeHTML(
             t.title
           )}</h4>
           <span class="chip ${t.status}">${t.status.replace('_', ' ')}</span>
@@ -368,21 +371,35 @@
   function renderTickets() {
     const list = $('#ticketsList');
     if (!list) return;
-    const tickets = getTickets().filter((t) => !t.isDeleted); // Only show non-deleted tickets
+    const allTickets = getTickets()
+      .filter((t) => !t.isDeleted)
+      .sort((a, b) => b.id - a.id);
+
     list.innerHTML = '';
 
-    if (tickets.length === 0) {
+    const totalTickets = allTickets.length;
+    const totalPages = Math.ceil(totalTickets / ticketsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+
+    const startIndex = (currentPage - 1) * ticketsPerPage;
+    const paginatedTickets = allTickets.slice(
+      startIndex,
+      startIndex + ticketsPerPage
+    );
+
+    if (paginatedTickets.length === 0) {
       list.innerHTML =
         '<p class="text-gray-500 dark:text-gray-400 col-span-full text-center">No tickets yet. Create one above.</p>';
+      updatePaginationControls(0); // Hide controls
       return;
     }
 
-    tickets.forEach((t) => {
+    paginatedTickets.forEach((t) => {
       const card = document.createElement('div');
       card.className = 'card p-4 flex flex-col gap-3';
       card.innerHTML = `
         <div class="flex justify-between items-start">
-          <h4 class="font-bold text-sky-500 dark:text-sky-400">${escapeHTML(
+          <h4 class="font-bold text-indigo-600 dark:text-indigo-400">${escapeHTML(
             t.title
           )}</h4>
           <span class="chip ${t.status}">${t.status.replace('_', ' ')}</span>
@@ -426,6 +443,22 @@
         });
       };
     });
+
+    updatePaginationControls(totalPages);
+  }
+
+  function updatePaginationControls(totalPages) {
+    const paginationControls = $('#paginationControls');
+    const pageInfo = $('#pageInfo');
+    const prevBtn = $('#prevPageBtn');
+    const nextBtn = $('#nextPageBtn');
+
+    if (!paginationControls || !pageInfo || !prevBtn || !nextBtn) return;
+
+    paginationControls.classList.toggle('hidden', totalPages <= 1);
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage >= totalPages;
   }
 
   function loadTicketIntoForm(id) {
@@ -449,7 +482,7 @@
     // Style the form title to match the ticket titles
     const formTitle = $('#formTitle');
     if (formTitle) {
-      formTitle.classList.add('text-sky-500', 'dark:text-sky-400');
+      formTitle.classList.add('text-indigo-600', 'dark:text-indigo-400');
     }
 
     $('#resetFormBtn').onclick = () => {
@@ -459,8 +492,18 @@
       clearErrors(form);
     };
 
+    // Pagination button listeners
+    $('#prevPageBtn').onclick = () => {
+      if (currentPage > 1) currentPage--;
+      renderTickets();
+    };
+    $('#nextPageBtn').onclick = () => {
+      currentPage++;
+      renderTickets();
+    };
+
     form.addEventListener('submit', (e) => {
-      e.preventDefault();
+      e.preventDefault(); // This is the critical line to prevent page reload.
       clearErrors(form);
 
       const fd = new FormData(form);
@@ -547,7 +590,7 @@
         'card p-4 flex flex-col gap-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400';
       card.innerHTML = `
         <div class="flex justify-between items-start">
-          <h4 class="font-bold text-sky-500 dark:text-sky-400">${escapeHTML(
+          <h4 class="font-bold text-indigo-600 dark:text-indigo-400">${escapeHTML(
             t.title
           )}</h4>
           <span class="chip ${t.status}">${t.status.replace('_', ' ')}</span>
