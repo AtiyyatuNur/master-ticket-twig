@@ -7,23 +7,28 @@ RUN a2enmod rewrite
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy project files into container
-COPY . /var/www/html/
-
-# Install dependencies for Composer
+# Install system dependencies & PHP extensions
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
+    zip \
     libzip-dev \
-    && docker-php-ext-install zip pdo pdo_mysql
+    && docker-php-ext-install pdo pdo_mysql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only composer files first (for caching)
+COPY composer.json composer.lock ./
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Install PHP dependencies
-RUN composer install
+# Install PHP dependencies (with unlimited memory + optimized autoloader)
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-# Set correct permissions
+# Now copy the rest of the project files
+COPY . .
+
+# Fix file permissions for Apache
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
